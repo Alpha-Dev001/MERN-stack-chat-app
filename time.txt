@@ -1,2 +1,3 @@
-left on 02 : 22 : 49
+left on 04 : 06 : 38
 
+MONGO_URI=mongodb+srv://alphamnzr_db_user:HdlbRzXQwaAsUmz4@cluster0.3swyvap.mongodb.net/chat_app_db?appName=Cluster0

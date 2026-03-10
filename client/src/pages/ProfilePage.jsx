@@ -1,17 +1,44 @@
-import React from 'react'
-import { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import assets from '../assets/assets'
+import { useAuthContext } from '../context/AuthContext'
 
 function ProfilePage() {
+  const { authUser, updateProfile } = useAuthContext()
+  const navigate = useNavigate()
+
   const [selectedImage, setSelectedImage] = useState(null)
-  const navigate = useNavigate();
-  const [name, setName] = useState("")
-  const [bio, setBio] = useState("Hi Everyone, I am using QuickChat")
+  const [name, setName] = useState('')
+  const [bio, setBio] = useState('')
+
+  useEffect(() => {
+    if (authUser) {
+      setName(authUser.fullName || '')
+      setBio(authUser.bio || '')
+    }
+  }, [authUser])
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    navigate('/')
+    e.preventDefault()
+
+    const runUpdate = async (payload) => {
+      const result = await updateProfile(payload)
+      if (result.success) {
+        navigate('/')
+      }
+    }
+
+    if (!selectedImage) {
+      await runUpdate({ fullName: name, bio })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.readAsDataURL(selectedImage)
+    reader.onload = async () => {
+      const base64Image = reader.result
+      await runUpdate({ profilePic: base64Image, fullName: name, bio })
+    }
   }
 
   return (
@@ -21,16 +48,23 @@ function ProfilePage() {
         <form onSubmit={handleSubmit} className='p-10 flex flex-col gap-5 flex-1'>
           <h3 className='text-lg'>Profile details</h3>
           <label htmlFor="avatar" className='flex items-center gap-3 cursor-pointer'>
-            <input onChange={(e)=>setSelectedImage(e.target.files[0])} type="file" id="avatar" className='hidden' accept='.png, .jpg, .jpeg, .svg'/>
-            <img src={selectedImage ? URL.createObjectURL(selectedImage) : assets.avatar_icon} 
-            className={`w-12 h-12 ${selectedImage && 'rounded-full'}`} alt="" />
+            <input onChange={(e) => setSelectedImage(e.target.files[0])} type="file" id="avatar" className='hidden' accept='.png, .jpg, .jpeg, .svg' />
+            <img
+              src={
+                selectedImage
+                  ? URL.createObjectURL(selectedImage)
+                  : authUser?.profilePic || assets.avatar_icon
+              }
+              className={`w-12 h-12 ${selectedImage && 'rounded-full'}`}
+              alt=""
+            />
             upload profile image
           </label>
-          <input type="text" placeholder='Your name' value={name} onChange={(e) => setName(e.target.value)} 
-          className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500' required/>
+          <input type="text" placeholder='Your name' value={name} onChange={(e) => setName(e.target.value)}
+            className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500' required />
 
-          <textarea rows={4} placeholder='Write Profile bio here...' value={bio} onChange={(e) => setBio(e.target.value)} 
-          className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500' required/>
+          <textarea rows={4} placeholder='Write Profile bio here...' value={bio} onChange={(e) => setBio(e.target.value)}
+            className='p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500' required />
 
           <button type='submit' className='bg-violet-600 text-white py-2 rounded-md cursor-pointer'>Save</button>
         </form>
