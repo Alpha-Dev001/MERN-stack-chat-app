@@ -13,24 +13,37 @@ export const initSocket = (server) => {
 
     io.on("connection", (socket) => {
         const userId = socket.handshake.auth?.userId
-        console.log("User connected:", userId)
 
-        if (userId) {
-            // Add user to socket map
-            userSocketMap[userId] = socket.id
-            connectedUsers.add(userId)
-
-            // Broadcast updated online users list
-            io.emit("getOnlineUsers", Array.from(connectedUsers))
-
-            // Broadcast user status change to all clients
-            io.emit("userStatusChanged", { userId, status: "online" })
-
-            console.log("Online users:", Array.from(connectedUsers))
+        // Validate userId before proceeding
+        if (!userId || typeof userId !== 'string') {
+            console.log("Invalid userId provided, disconnecting socket");
+            socket.disconnect();
+            return;
         }
 
+        console.log("User connected:", userId)
+
+        // Check if user is already connected
+        if (userSocketMap[userId]) {
+            console.log("User already connected, disconnecting previous socket:", userId);
+            const oldSocketId = userSocketMap[userId];
+            io.sockets.sockets.get(oldSocketId)?.disconnect();
+        }
+
+        // Add user to socket map
+        userSocketMap[userId] = socket.id
+        connectedUsers.add(userId)
+
+        // Broadcast updated online users list
+        io.emit("getOnlineUsers", Array.from(connectedUsers))
+
+        // Broadcast user status change to all clients
+        io.emit("userStatusChanged", { userId, status: "online" })
+
+        console.log("Online users:", Array.from(connectedUsers))
+
         socket.on("typing", ({ receiverId }) => {
-            if (!userId) return;
+            if (!userId || !receiverId || typeof receiverId !== 'string') return;
 
             const conversationId = [userId, receiverId].sort().join('_')
             if (!typingUsers[conversationId]) {
@@ -46,7 +59,7 @@ export const initSocket = (server) => {
         })
 
         socket.on("stopTyping", ({ receiverId }) => {
-            if (!userId) return;
+            if (!userId || !receiverId || typeof receiverId !== 'string') return;
 
             const conversationId = [userId, receiverId].sort().join('_')
             if (typingUsers[conversationId]) {

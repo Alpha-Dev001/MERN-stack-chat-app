@@ -1,5 +1,6 @@
 import cloudinary from "../lib/cloudinary.js";
 import { generateToken } from "../lib/utils.js";
+import { sanitizeEmail, sanitizeName, sanitizeBio } from "../lib/sanitize.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs"
 
@@ -7,18 +8,21 @@ import bcrypt from "bcryptjs"
 //Signup a new user
 export const signup = async (req, res) => {
     const { fullName, email, password, bio } = req.body;
+    const sanitizedEmail = sanitizeEmail(email);
+    const sanitizedFullName = sanitizeName(fullName);
+    const sanitizedBio = sanitizeBio(bio);
     console.log('Signup request received:', { fullName, email, password: '***', bio });
 
     try {
         // Enhanced validation
-        if (!fullName || !email || !password) {
+        if (!sanitizedFullName || !sanitizedEmail || !password) {
             console.log('Validation failed: missing details');
             return res.json({ success: false, message: "Full name, email, and password are required" })
         }
 
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(sanitizedEmail)) {
             return res.json({ success: false, message: "Please enter a valid email address" })
         }
 
@@ -28,9 +32,9 @@ export const signup = async (req, res) => {
         }
 
         // Check for existing user
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email: sanitizedEmail });
         if (existingUser) {
-            console.log('User already exists:', email);
+            console.log('User already exists:', sanitizedEmail);
             return res.json({ success: false, message: "An account with this email already exists" })
         }
 
@@ -38,12 +42,12 @@ export const signup = async (req, res) => {
         const salt = await bcrypt.genSalt(12);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create new user with enhanced data
+        // Create new user with sanitized data
         const newUser = await User.create({
-            fullName: fullName.trim(),
-            email: email.toLowerCase().trim(),
+            fullName: sanitizedFullName,
+            email: sanitizedEmail,
             password: hashedPassword,
-            bio: bio?.trim() || ""
+            bio: sanitizedBio
         });
 
         // Generate token
@@ -53,7 +57,7 @@ export const signup = async (req, res) => {
         const userSafe = newUser.toObject();
         delete userSafe.password;
 
-        console.log('User created successfully:', { fullName, email });
+        console.log('User created successfully:', { fullName: sanitizedFullName, email: sanitizedEmail });
         res.json({
             success: true,
             userData: userSafe,
