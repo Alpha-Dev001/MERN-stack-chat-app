@@ -203,74 +203,73 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
             {messages.map((msg, index) => {
               const isCurrentUser = authUser && msg.senderId === authUser._id;
               return (
-                <div key={index} className={`flex items-end gap-3 mb-4 ${
-                  isCurrentUser
-                    ? 'flex-row-reverse justify-end'
-                    : 'flex-row justify-start'
-                }`}>
-                  <div className='flex flex-col items-center gap-1 min-w-[40px]'>
-                    <img src={
-                      isCurrentUser
-                        ? authUser.profilePic || assets.avatar_icon
-                        : msg.senderId === selectedUser?._id
-                          ? selectedUser?.profilePic || assets.avatar_icon
-                          : assets.avatar_icon
-                    } alt={isCurrentUser ? 'You' : 'User'} className='rounded-full w-8 h-8 border-2 border-gray-600/30' />
-                    <p className='text-gray-400 text-xs font-medium'>{formatMessageTime(msg.createdAt)}</p>
-                  </div>
-                  <div className={`max-w-[70%] ${
+              <div key={index} className={`flex items-end gap-3 mb-4 ${
+                isCurrentUser
+                  ? 'flex-row-reverse justify-end'
+                  : 'flex-row justify-start'
+              }`}>
+                <div className='flex flex-col items-center gap-1 min-w-[40px]'>
+                  <img src={
                     isCurrentUser
-                      ? 'flex-col items-end'
-                      : 'flex-col items-start'
-                  }`}>
-                    {msg.image ? (
-                      <div className="relative group">
-                        <img src={msg.image} alt='Image message' className='max-w-full rounded-lg border border-gray-700 rounded-lg overflow-hidden shadow-lg' />
-                        {isCurrentUser && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg._id)}
-                            className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
-                            title="Delete message"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="relative group">
-                        <p className={`p-3 md:text-sm font-normal rounded-lg break-all shadow-md ${
-                          isCurrentUser
-                            ? 'bg-blue-500 text-white rounded-br-none border border-blue-600/30'
-                            : 'bg-gray-700 text-white rounded-bl-none border border-gray-600/30'
-                        }`}>{msg.text}</p>
-                        {isCurrentUser && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg._id)}
-                            className="absolute -top-1 -right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
-                            title="Delete message"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {isCurrentUser && (
-                      <div className="flex items-center gap-1 mt-1 text-xs">
-                        {msg.seen ? (
-                          <span className="text-blue-400">Seen</span>
-                        ) : (
-                          <span className="text-gray-500">Sent</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                      ? authUser.profilePic || assets.avatar_icon
+                      : msg.senderId === selectedUser?._id
+                        ? selectedUser?.profilePic || assets.avatar_icon
+                        : assets.avatar_icon
+                  } alt={isCurrentUser ? 'You' : 'User'} className='rounded-full w-8 h-8 border-2 border-gray-600/30' />
+                  <p className='text-gray-400 text-xs font-medium'>{formatMessageTime(msg.createdAt)}</p>
                 </div>
-              )
-            })}
+                <div className={`max-w-[70%] ${
+                  isCurrentUser
+                    ? 'flex-col items-end'
+                    : 'flex-col items-start'
+                }`}>
+                  {msg.image ? (
+                    <div className="relative group">
+                      <img src={msg.image} alt='Image message' className='max-w-full rounded-lg border border-gray-700 rounded-lg overflow-hidden shadow-lg' />
+                      {isCurrentUser && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg._id)}
+                          className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
+                          title="Delete message"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative group">
+                      <p className={`p-3 md:text-sm font-normal rounded-lg break-all shadow-md ${
+                        isCurrentUser
+                          ? 'bg-blue-500 text-white rounded-br-none border border-blue-600/30'
+                          : 'bg-gray-700 text-white rounded-bl-none border border-gray-600/30'
+                      }`}>{msg.text}</p>
+                      {isCurrentUser && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg._id)}
+                          className="absolute -top-1 -right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
+                          title="Delete message"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {isCurrentUser && (
+                    <div className="flex items-center gap-1 mt-1 text-xs">
+                      {msg.seen ? (
+                        <span className="text-blue-400">Seen</span>
+                      ) : (
+                        <span className="text-gray-500">Sent</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
 

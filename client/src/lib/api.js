@@ -43,5 +43,7 @@ export const messagesAPI = {
     getUsers: () => api.get('/messages/users'),
     getMessages: (userId) => api.get(`/messages/${userId}`),
     sendMessage: (userId, messageData) => api.post(`/messages/send/${userId}`, messageData),
-    markAsSeen: (messageId) => api.put(`/messages/mark/${messageId}`)
+    markAsSeen: (messageId) => api.put(`/messages/mark/${messageId}`),
+    deleteMessage: (messageId) => api.delete(`/messages/${messageId}`),
+    searchMessages: (userId, query) => api.get(`/messages/search/${userId}?query=${encodeURIComponent(query)}`)
 }

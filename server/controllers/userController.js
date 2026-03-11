@@ -7,68 +7,115 @@ import bcrypt from "bcryptjs"
 //Signup a new user
 export const signup = async (req, res) => {
     const { fullName, email, password, bio } = req.body;
+    console.log('Signup request received:', { fullName, email, password: '***', bio });
 
     try {
-        if (!fullName || !email || !password || !bio) {
-            return res.json({ success: false, message: "Missing Details" })
+        // Enhanced validation
+        if (!fullName || !email || !password) {
+            console.log('Validation failed: missing details');
+            return res.json({ success: false, message: "Full name, email, and password are required" })
         }
-        const user = await User.findOne({ email });
 
-        if (user) {
-            return res.json({ success: false, message: "Account already exists" })
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.json({ success: false, message: "Please enter a valid email address" })
         }
-        const salt = await bcrypt.genSalt(10);
+
+        // Validate password strength
+        if (password.length < 6) {
+            return res.json({ success: false, message: "Password must be at least 6 characters long" })
+        }
+
+        // Check for existing user
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            console.log('User already exists:', email);
+            return res.json({ success: false, message: "An account with this email already exists" })
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(12);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // Create new user with enhanced data
         const newUser = await User.create({
-            fullName, email, password: hashedPassword, bio
+            fullName: fullName.trim(),
+            email: email.toLowerCase().trim(),
+            password: hashedPassword,
+            bio: bio?.trim() || ""
         });
 
+        // Generate token
         const token = generateToken(newUser._id);
 
+        // Remove password from response
         const userSafe = newUser.toObject();
         delete userSafe.password;
 
+        console.log('User created successfully:', { fullName, email });
         res.json({
-            success: true, userData: userSafe, token,
+            success: true,
+            userData: userSafe,
+            token,
             message: "Account created successfully"
         })
     } catch (error) {
-        console.log(error.message);
-        res.json({ success: false, message: error.message });
+        console.error('Signup error:', error.message);
+        // Handle specific MongoDB errors
+        if (error.code === 11000) {
+            return res.json({ success: false, message: "An account with this email already exists" })
+        }
+        res.json({ success: false, message: "Failed to create account. Please try again." });
     }
 }
 
 
 //Controller to login a user 
-
 export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const userData = await User.findOne({ email });
+        console.log('Login attempt:', { email, password: '***' });
 
+        // Enhanced validation
+        if (!email || !password) {
+            return res.json({ success: false, message: "Email and password are required" });
+        }
+
+        // Normalize email
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Find user
+        const userData = await User.findOne({ email: normalizedEmail });
         if (!userData) {
-            return res.json({ success: false, message: "User not found" });
+            console.log('User not found:', normalizedEmail);
+            return res.json({ success: false, message: "Invalid email or password" });
         }
 
+        // Check password
         const isPasswordCorrect = await bcrypt.compare(password, userData.password);
-
         if (!isPasswordCorrect) {
-            return res.json({ success: false, message: "Invalid credentials" });
+            console.log('Invalid password for:', normalizedEmail);
+            return res.json({ success: false, message: "Invalid email or password" });
         }
 
+        // Generate token
         const token = generateToken(userData._id);
 
+        // Remove password from response
         const userSafe = userData.toObject();
         delete userSafe.password;
 
+        console.log('Login successful:', normalizedEmail);
         res.json({
-            success: true, userData: userSafe, token,
+            success: true,
+            userData: userSafe,
+            token,
             message: "Login successful"
         })
     } catch (error) {
-        console.log(error.message);
-        res.json({ success: false, message: error.message });
+        console.error('Login error:', error.message);
+        res.json({ success: false, message: "Login failed. Please try again." });
     }
 }
 

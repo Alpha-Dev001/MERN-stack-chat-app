@@ -5,7 +5,7 @@ import { useChatContext } from '../context/ChatContext'
 import { useAuthContext } from '../context/AuthContext'
 import { useSocketContext } from '../context/SocketContext'
 import toast from 'react-hot-toast'
-import { MessageSkeleton } from './LoadingSkeleton'
+import { MessageSkeleton, ChatSkeleton } from './LoadingSkeleton'
 import MessageSearch from './MessageSearch'
 
 function ChatConatainer({ selectedUser, setSelectedUser }) {
@@ -25,6 +25,33 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
     }
   }, [messages])
 
+  // Auto-scroll for new messages - optimized for instant display
+  useEffect(() => {
+    const scrollContainer = document.querySelector('[data-scroll-container]')
+    if (scrollContainer && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1]
+      // Check if this is a newly added message (within last 1 second)
+      const messageTime = new Date(lastMessage.createdAt)
+      const now = new Date()
+      const timeDiff = (now - messageTime) / 1000
+      
+      if (timeDiff < 1) {
+        // Use requestAnimationFrame for smooth, instant scrolling
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight
+        })
+      }
+    }
+  }, [messages])
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const handleSendMessage = async (e) => {
     e.preventDefault()
     if (!text.trim() && !image) return
@@ -33,8 +60,15 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
       emitStopTyping(selectedUser._id)
     }
 
+    // Clear input immediately for instant feedback
     const messageText = text.trim()
     setText('')
+
+    // Clear input field immediately
+    const inputElement = document.querySelector('input[type="text"]')
+    if (inputElement) {
+      inputElement.value = ''
+    }
 
     const messageData = { text: messageText }
     setSending(true)
@@ -60,10 +94,12 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
     if (newText.trim() && selectedUser) {
       emitTyping(selectedUser._id)
 
+      // Clear existing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
       }
 
+      // Set new timeout to stop typing indicator after 1 second of inactivity
       typingTimeoutRef.current = setTimeout(() => {
         if (selectedUser) {
           emitStopTyping(selectedUser._id)
@@ -79,6 +115,11 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
     if (result.success) {
       setText('')
       setImage(null)
+      // Clear input immediately for better UX
+      const inputElement = document.querySelector('input[type="text"]')
+      if (inputElement) {
+        inputElement.value = ''
+      }
     } else {
       toast.error(result.message || 'Failed to send message')
     }
@@ -100,7 +141,7 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
 
   return selectedUser ? (
     <div className='h-full overflow-scroll relative backdrop-blur-lg'>
-      {/* header */}
+      {/*----- header -----*/}
       <div className='flex items-center gap-3 py-3 mx-4 border-b border-stone-500'>
         <img src={selectedUser?.profilePic || assets.avatar_icon} alt="" className='w-8 rounded-full' />
         <p className='flex-1 text-lg text-white flex items-center gap-2'>{selectedUser?.fullName || 'User'}
@@ -116,7 +157,7 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
         <img src={assets.help_icon} alt="" className='max-md:hidden max-w-5' />
       </div>
 
-      {/* Search bar */}
+      {/*----- Search bar -----*/}
       <MessageSearch
         selectedUser={selectedUser}
         onSearch={searchMessages}
@@ -124,7 +165,7 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
         isSearching={isSearching}
       />
 
-      {/* messages area */}
+      {/*----- messages area -----*/}
       <div className='flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-3 pb-6' data-scroll-container>
         {loading ? (
           <div className='space-y-4'>
@@ -143,14 +184,18 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
                   ? 'flex-row-reverse justify-end'
                   : 'flex-row justify-start'
               }`}>
+                {/* Profile Picture */}
                 <div className='flex flex-col items-center gap-1 min-w-[40px]'>
                   <img src={
                     authUser && msg.senderId === authUser._id
                       ? authUser.profilePic || assets.avatar_icon
                       : selectedUser?.profilePic || assets.avatar_icon
-                  } alt="User" className='rounded-full w-8 h-8 border-2 border-gray-600/30' />
+                  } alt={`${authUser && msg.senderId === authUser._id ? 'You' : selectedUser?.fullName || 'User'}`}
+                    className='rounded-full w-8 h-8 border-2 border-gray-600/30' />
                   <p className='text-gray-400 text-xs font-medium'>{formatMessageTime(msg.createdAt)}</p>
                 </div>
+
+                {/* Message Content */}
                 <div className={`max-w-[70%] ${
                   authUser && msg.senderId === authUser._id
                     ? 'flex-col items-end'
@@ -158,7 +203,8 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
                 }`}>
                   {msg.image ? (
                     <div className="relative group">
-                      <img src={msg.image} alt='Image message' className='max-w-full rounded-lg border border-gray-700 rounded-lg overflow-hidden shadow-lg' />
+                      <img src={msg.image} alt='Image message' className='max-w-full rounded-lg border 
+                              border-gray-700 rounded-lg overflow-hidden shadow-lg' />
                       {authUser && msg.senderId === authUser._id && (
                         <button
                           onClick={() => handleDeleteMessage(msg._id)}
@@ -174,7 +220,7 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
                   ) : (
                     <div className="relative group">
                       <p className={`p-3 md:text-sm font-normal rounded-lg break-all shadow-md bg-violet-600/30 text-white rounded-br-none border border-violet-700/30`}>
-                        <span className="text-yellow-300 text-xs">"{msg.text}"</span>
+                        <span className="text-yellow-300 text-xs">"{searchResults.find(m => m._id === msg._id)?.text.split('').join('')}"</span>
                       </p>
                       {authUser && msg.senderId === authUser._id && (
                         <button
@@ -203,74 +249,80 @@ function ChatConatainer({ selectedUser, setSelectedUser }) {
             {messages.map((msg, index) => {
               const isCurrentUser = authUser && msg.senderId === authUser._id;
               return (
-                <div key={index} className={`flex items-end gap-3 mb-4 ${
-                  isCurrentUser
-                    ? 'flex-row-reverse justify-end'
-                    : 'flex-row justify-start'
-                }`}>
-                  <div className='flex flex-col items-center gap-1 min-w-[40px]'>
-                    <img src={
-                      isCurrentUser
-                        ? authUser.profilePic || assets.avatar_icon
-                        : msg.senderId === selectedUser?._id
-                          ? selectedUser?.profilePic || assets.avatar_icon
-                          : assets.avatar_icon
-                    } alt={isCurrentUser ? 'You' : 'User'} className='rounded-full w-8 h-8 border-2 border-gray-600/30' />
-                    <p className='text-gray-400 text-xs font-medium'>{formatMessageTime(msg.createdAt)}</p>
-                  </div>
-                  <div className={`max-w-[70%] ${
+              <div key={index} className={`flex items-end gap-3 mb-4 ${
+                isCurrentUser
+                  ? 'flex-row-reverse justify-end'
+                  : 'flex-row justify-start'
+              } message-enter message-hover`}>
+                {/* Profile Picture */}
+                <div className='flex flex-col items-center gap-1 min-w-[40px]'>
+                  <img src={
                     isCurrentUser
-                      ? 'flex-col items-end'
-                      : 'flex-col items-start'
-                  }`}>
-                    {msg.image ? (
-                      <div className="relative group">
-                        <img src={msg.image} alt='Image message' className='max-w-full rounded-lg border border-gray-700 rounded-lg overflow-hidden shadow-lg' />
-                        {isCurrentUser && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg._id)}
-                            className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
-                            title="Delete message"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="relative group">
-                        <p className={`p-3 md:text-sm font-normal rounded-lg break-all shadow-md ${
-                          isCurrentUser
-                            ? 'bg-blue-500 text-white rounded-br-none border border-blue-600/30'
-                            : 'bg-gray-700 text-white rounded-bl-none border border-gray-600/30'
-                        }`}>{msg.text}</p>
-                        {isCurrentUser && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg._id)}
-                            className="absolute -top-1 -right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
-                            title="Delete message"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {isCurrentUser && (
-                      <div className="flex items-center gap-1 mt-1 text-xs">
-                        {msg.seen ? (
-                          <span className="text-blue-400">Seen</span>
-                        ) : (
-                          <span className="text-gray-500">Sent</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                      ? authUser.profilePic || assets.avatar_icon
+                      : msg.senderId === selectedUser?._id
+                        ? selectedUser?.profilePic || assets.avatar_icon
+                        : assets.avatar_icon // Fallback for other users
+                  } alt={isCurrentUser ? 'You' : msg.senderId === selectedUser?._id ? selectedUser?.fullName || 'User' : 'User'}
+                    className='rounded-full w-8 h-8 border-2 border-gray-600/30' />
+                  <p className='text-gray-400 text-xs font-medium'>{formatMessageTime(msg.createdAt)}</p>
                 </div>
-              )
-            })}
+                
+                {/* Message Content */}
+                <div className={`max-w-[70%] ${
+                  isCurrentUser
+                    ? 'flex-col items-end'
+                    : 'flex-col items-start'
+                }`}>
+                  {msg.image ? (
+                    <div className="relative group">
+                      <img src={msg.image} alt='Image message' className='max-w-full rounded-lg border 
+                              border-gray-700 rounded-lg overflow-hidden shadow-lg' />
+                      {isCurrentUser && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg._id)}
+                          className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
+                          title="Delete message"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative group">
+                      <p className={`p-3 md:text-sm font-normal rounded-lg break-all shadow-md ${
+                        isCurrentUser
+                          ? 'bg-blue-500 text-white rounded-br-none border border-blue-600/30'
+                          : 'bg-gray-700 text-white rounded-bl-none border border-gray-600/30'
+                      }`}>{msg.text}</p>
+                      {isCurrentUser && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg._id)}
+                          className="absolute -top-1 -right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
+                          title="Delete message"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Message status indicator for sent messages */}
+                  {isCurrentUser && (
+                    <div className="flex items-center gap-1 mt-1 text-xs">
+                      {msg.seen ? (
+                        <span className="text-blue-400">Seen</span>
+                      ) : (
+                        <span className="text-gray-500">Sent</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
 

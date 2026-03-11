@@ -9,22 +9,32 @@ export const useAuthContext = () => {
 
 export const AuthContextProvider = ({ children }) => {
 
-    const [token, setToken] = useState(localStorage.getItem("token"));
-    const [authUser, setAuthUser] = useState(null);
-    const [onlineUsers, setOnlineUsers] = useState([]);
-    const [socket, setSocket] = useState(null);
+    const [authUser, setAuthUser] = useState(null)
+    const [loading, setLoading] = useState(true)
 
-    //check if the user is authenticated and if so, set the user data and connect the socket
-    const checkAuth = async () => {
-        try {
-            const { data } = await axios.get("/api/auth/check");
-            if (data.success) {
-                setAuthUser(data.user);
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const token = localStorage.getItem('token')
+                if (!token) {
+                    setLoading(false)
+                    return
+                }
+
+                const res = await api.get('/auth/check')
+                if (res.data.success) {
+                    setAuthUser(res.data.user)
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error)
+                localStorage.removeItem('token')
+            } finally {
+                setLoading(false)
             }
-        } catch (error) {
-            toast.error(error.message)
         }
-    }
+
+        checkAuth()
+    }, [])
 
     //Login Function to handle user authentcation and socket connection
 

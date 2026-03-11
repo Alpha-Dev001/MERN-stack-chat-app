@@ -1,14 +1,46 @@
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
-    senderId:{type:mongoose.Schema.ObjectId,ref:"User",required: true},
-    receiverId:{type:mongoose.Schema.ObjectId,ref:"User",required: true},
-    text:{type:String},
-    image:{type:String},
-    seen : {type : Boolean, default: false}
-},{timestamps:true});
+    senderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, "Sender ID is required"]
+    },
+    receiverId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, "Receiver ID is required"]
+    },
+    text: {
+        type: String,
+        trim: true,
+        maxlength: [1000, "Message cannot exceed 1000 characters"]
+    },
+    image: {
+        type: String,
+        trim: true
+    },
+    seen: {
+        type: Boolean,
+        default: false
+    },
+    delivered: {
+        type: Boolean,
+        default: false
+    },
+    deleted: {
+        type: Boolean,
+        default: false
+    }
+}, {
+    timestamps: true
+});
 
+// Indexes for better performance
+messageSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 });
+messageSchema.index({ receiverId: 1, seen: 1 });
+messageSchema.index({ createdAt: -1 });
 
-const Message =  mongoose.model("Message",messageSchema);
+const Message = mongoose.model("Message", messageSchema);
 
 export default Message;

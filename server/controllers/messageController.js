@@ -52,6 +52,7 @@ export const getMessages = async (req, res) => {
     }
 }
 
+
 //api to mark messages as seen using message id
 export const markMessageAsSeen = async (req, res) => {
     try {
@@ -72,26 +73,129 @@ export const sendMessage = async (req, res) => {
         const receiverId = req.params.id;
         const senderId = req.user._id;
 
-        let imageUrl;
-        if (image) {
-            const uploadResponse = await cloudinary.uploader.upload(image);
-            imageUrl = uploadResponse.secure_url;
+        // Enhanced validation
+        if (!text && !image) {
+            return res.json({ success: false, message: "Message content is required" });
         }
 
+        if (text && text.trim().length === 0 && !image) {
+            return res.json({ success: false, message: "Message cannot be empty" });
+        }
+
+        if (receiverId === senderId) {
+            return res.json({ success: false, message: "Cannot send message to yourself" });
+        }
+
+        let imageUrl;
+        if (image) {
+            try {
+                const uploadResponse = await cloudinary.uploader.upload(image);
+                imageUrl = uploadResponse.secure_url;
+            } catch (uploadError) {
+                console.error('Image upload failed:', uploadError);
+                return res.json({ success: false, message: "Failed to upload image" });
+            }
+        }
+
+        // Create message with enhanced data
         const newMessage = await Message.create({
             senderId,
             receiverId,
-            text,
-            image: imageUrl
-        })
+            text: text?.trim() || "",
+            image: imageUrl,
+            seen: false
+        });
+
+        // Populate sender and receiver info for better client handling
+        const populatedMessage = await Message.findById(newMessage._id)
+            .populate('senderId', 'fullName profilePic')
+            .populate('receiverId', 'fullName profilePic');
 
         // Emit the new message to the receiver's socket
         const receiverSocketId = userSocketMap[receiverId];
         if (receiverSocketId) {
-            io.to(receiverSocketId).emit("newMessage", newMessage)
+            io.to(receiverSocketId).emit("newMessage", populatedMessage);
+            console.log('Message sent to receiver:', receiverId);
+        } else {
+            console.log('Receiver not online, message saved to database');
         }
 
-        res.json({ success: true, newMessage });
+        // Also emit to sender for real-time update
+        const senderSocketId = userSocketMap[senderId];
+        if (senderSocketId && senderSocketId !== receiverSocketId) {
+            io.to(senderSocketId).emit("messageSent", populatedMessage);
+        }
+
+        res.json({
+            success: true,
+            message: "Message sent successfully",
+            newMessage: populatedMessage
+        });
+
+    } catch (error) {
+        console.error('Send message error:', error.message);
+        res.json({ success: false, message: "Failed to send message" });
+    }
+}
+
+//Delete a message
+export const deleteMessage = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+
+        if (!message) {
+            return res.json({ success: false, message: "Message not found" });
+        }
+
+        // Only allow sender to delete their own messages
+        if (message.senderId.toString() !== userId.toString()) {
+            return res.json({ success: false, message: "Not authorized to delete this message" });
+        }
+
+        await Message.findByIdAndDelete(messageId);
+
+        // Emit message deletion to both sender and receiver
+        const receiverSocketId = userSocketMap[message.receiverId];
+        const senderSocketId = userSocketMap[message.senderId];
+
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("messageDeleted", messageId);
+        }
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("messageDeleted", messageId);
+        }
+
+        res.json({ success: true, message: "Message deleted successfully" });
+
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+}
+
+//Search messages within a conversation
+export const searchMessages = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { query } = req.query;
+        const myId = req.user._id;
+
+        if (!query) {
+            return res.json({ success: false, message: "Search query is required" });
+        }
+
+        const messages = await Message.find({
+            $or: [
+                { senderId: myId, receiverId: userId },
+                { senderId: userId, receiverId: myId }
+            ],
+            $text: { $search: query }
+        }).sort({ createdAt: -1 });
+
+        res.json({ success: true, messages });
 
     } catch (error) {
         console.log(error.message);
